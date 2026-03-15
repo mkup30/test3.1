@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SaaS Financial Model</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#0b0d11; --s1:#13161e; --s2:#1a1e28; --s3:#21263300;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.14);
+  --text:#eeeae4; --muted:#6b6e78; --muted2:#9a9da8;
+  --base:#3b82f6; --base-dim:rgba(59,130,246,0.13);
+  --opt:#a78bfa;  --opt-dim:rgba(167,139,250,0.13);
+  --arr-c:#3b82f6; --gm-c:#4ade9b; --exp-c:#f87171; --cash-c:#f5c842;
+}
+body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+/* HEADER */
+.header { padding:1.5rem 2rem .5rem; display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.header h1 { font-family:'DM Serif Display',serif; font-size:1.75rem; font-weight:400; }
+.header h1 em { font-style:italic; color:var(--gm-c); }
+.quarters-ctrl { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); font-family:'DM Mono',monospace; }
+.qv { color:var(--text); font-weight:500; }
+
+/* TABS */
+.scenario-bar { padding:.75rem 2rem; display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--border); }
+.scenario-label { font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.1em; margin-right:4px; }
+.tab-group { display:flex; background:var(--s1); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.tab { padding:5px 14px; font-size:12px; font-family:'DM Mono',monospace; cursor:pointer; border:none; background:transparent; color:var(--muted2); transition:background .15s,color .15s; }
+.tab:hover { color:var(--text); }
+.tab.active-base { background:var(--base-dim); color:var(--base); }
+.tab.active-opt  { background:var(--opt-dim);  color:var(--opt); }
+.tab.active-comp { background:rgba(255,255,255,0.06); color:var(--text); }
+.legend-pill { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted2); font-family:'DM Mono',monospace; }
+.legend-line { width:20px; height:2px; border-radius:1px; }
+.legend-line.dashed { background:repeating-linear-gradient(90deg,var(--opt) 0,var(--opt) 4px,transparent 4px,transparent 7px); }
+
+/* SUMMARY */
+.summary { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:.75rem 2rem; }
+.sum-card { background:var(--s1); border:1px solid var(--border); border-radius:12px; padding:.85rem 1rem; }
+.sum-label { font-size:10px; color:var(--muted); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px; }
+.sum-row { display:flex; gap:12px; align-items:baseline; }
+.sum-val { font-family:'DM Mono',monospace; font-size:17px; font-weight:500; }
+.sum-vs { font-size:11px; display:flex; flex-direction:column; gap:2px; }
+.sum-vs span { font-family:'DM Mono',monospace; font-size:12px; }
+.sum-vs span.b { color:var(--base); } .sum-vs span.o { color:var(--opt); }
+.dot { width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:3px; flex-shrink:0; }
+
+/* SAAS METRICS */
+.metrics-section { padding:.75rem 2rem 1.25rem; border-bottom:1px solid var(--border); }
+.metrics-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:.75rem; }
+.metrics-title { font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.1em; }
+.metrics-hint  { font-size:10px; color:var(--muted); font-family:'DM Mono',monospace; }
+
+/* ── INPUT ROW (slider + text box) ── */
+.input-row { display:flex; align-items:center; gap:8px; }
+.input-row input[type=range] { flex:1; }
+.num-input {
+  width:80px; flex-shrink:0;
+  background:var(--s2); border:1px solid var(--border2);
+  border-radius:6px; padding:3px 7px;
+  font-family:'DM Mono',monospace; font-size:12px; font-weight:500;
+  color:var(--text); text-align:right; outline:none;
+  transition:border-color .15s;
+}
+.num-input:focus { border-color:rgba(255,255,255,0.3); }
+.num-input.wide { width:96px; }
+
+.metrics-assumptions { display:flex; gap:1.5rem; align-items:end; flex-wrap:wrap; background:var(--s2); border:1px solid var(--border); border-radius:10px; padding:.7rem 1.1rem; margin-bottom:.9rem; }
+.mini-ctrl { display:flex; flex-direction:column; gap:5px; min-width:130px; flex:1; }
+.mini-label { font-size:10px; color:var(--muted); font-family:'DM Mono',monospace; }
+
+.metrics-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+.metric-card { background:var(--s1); border:1px solid var(--border); border-radius:12px; padding:.9rem 1rem; position:relative; overflow:hidden; }
+.metric-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:12px 12px 0 0; }
+.metric-card.sg::before { background:#4ade9b; }
+.metric-card.sy::before { background:#f5c842; }
+.metric-card.sr::before { background:#f87171; }
+.metric-name { font-size:10px; color:var(--muted); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.1em; margin-bottom:4px; }
+.metric-val { font-family:'DM Mono',monospace; font-size:22px; font-weight:500; margin-bottom:2px; line-height:1.1; }
+.cv-g{color:#4ade9b;} .cv-y{color:#f5c842;} .cv-r{color:#f87171;}
+.metric-sub { font-size:10px; color:var(--muted); margin-bottom:6px; }
+.metric-bench { font-size:10px; font-family:'DM Mono',monospace; padding:2px 6px; border-radius:4px; display:inline-block; }
+.bench-g{background:rgba(74,222,155,.1);color:#4ade9b;} .bench-y{background:rgba(245,200,66,.1);color:#f5c842;} .bench-r{background:rgba(248,113,113,.1);color:#f87171;}
+.metric-comp { font-size:10px; color:var(--muted); margin-top:5px; font-family:'DM Mono',monospace; display:none; }
+.metric-comp.show { display:block; }
+.metric-comp .b{color:var(--base);} .metric-comp .o{color:var(--opt);}
+
+/* CONTROLS */
+.controls-wrap { border-bottom:1px solid var(--border); }
+.controls-shared { background:var(--s1); padding:.9rem 2rem; display:flex; gap:2rem; align-items:end; flex-wrap:wrap; border-bottom:1px solid var(--border); }
+.controls-scenarios { display:grid; grid-template-columns:1fr 1fr; }
+.scenario-col { padding:.9rem 2rem; }
+.scenario-col:first-child { border-right:1px solid var(--border); }
+.scenario-col-header { font-size:11px; font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:.1em; margin-bottom:.85rem; display:flex; align-items:center; gap:6px; }
+.scenario-col-header.base-h{color:var(--base);} .scenario-col-header.opt-h{color:var(--opt);}
+.scenario-sliders { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
+.ctrl { display:flex; flex-direction:column; gap:5px; }
+.ctrl-label { font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; }
+
+/* range slider base */
+input[type=range] { -webkit-appearance:none; appearance:none; width:100%; height:3px; background:var(--s2); border-radius:99px; outline:none; cursor:pointer; }
+input[type=range].base-r::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--base); border:2px solid var(--bg); }
+input[type=range].opt-r::-webkit-slider-thumb  { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--opt);  border:2px solid var(--bg); }
+input[type=range].neu::-webkit-slider-thumb    { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--muted2); border:2px solid var(--bg); }
+input[type=range].saas-r::-webkit-slider-thumb{ -webkit-appearance:none; width:12px; height:12px; border-radius:50%; background:var(--muted2); border:2px solid var(--bg); }
+
+/* CHARTS */
+.charts { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:12px 2rem 2rem; }
+.chart-card { background:var(--s1); border:1px solid var(--border); border-radius:16px; padding:1.1rem 1.25rem; transition:border-color .2s; }
+.chart-card:hover { border-color:var(--border2); }
+.chart-card.expanded { grid-column:1/-1; }
+.chart-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:.75rem; }
+.chart-title { font-size:13px; font-weight:500; display:flex; align-items:center; gap:7px; }
+.expand-btn { font-size:11px; color:var(--muted2); font-family:'DM Mono',monospace; border:1px solid var(--border); border-radius:6px; padding:3px 8px; background:transparent; cursor:pointer; transition:color .15s,border-color .15s; }
+.expand-btn:hover { color:var(--text); border-color:var(--border2); }
+.canvas-wrap { position:relative; width:100%; height:210px; }
+.chart-card.expanded .canvas-wrap { height:340px; }
+.runway-badge { font-size:11px; font-family:'DM Mono',monospace; padding:3px 8px; border-radius:6px; }
+.runway-badge.ok{background:rgba(74,222,155,.12);color:#4ade9b;} .runway-badge.warn{background:rgba(245,200,66,.12);color:#f5c842;} .runway-badge.bad{background:rgba(248,113,113,.12);color:#f87171;}
+
+@media(max-width:900px){ .metrics-grid{grid-template-columns:repeat(3,1fr);} }
+@media(max-width:700px){
+  .summary,.controls-scenarios{grid-template-columns:1fr 1fr;}
+  .scenario-sliders{grid-template-columns:1fr 1fr;}
+  .charts{grid-template-columns:1fr;}
+  .chart-card.expanded{grid-column:1;}
+  .metrics-grid{grid-template-columns:1fr 1fr;}
+  .controls-shared{flex-wrap:wrap;}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Quarterly <em>Financial Model</em></h1>
+  <div class="quarters-ctrl">
+    Quarters:&nbsp;<span class="qv" id="l-q">10</span>
+    <input type="range" class="neu" id="i-q" min="8" max="12" step="1" value="10" style="width:80px">
+    <input type="number" class="num-input" id="n-q" value="10" style="width:52px">
+  </div>
+</div>
+
+<div class="scenario-bar">
+  <span class="scenario-label">View</span>
+  <div class="tab-group">
+    <button class="tab active-base" id="tab-base" onclick="setTab('base')">Base</button>
+    <button class="tab" id="tab-opt"  onclick="setTab('opt')">Optimistic</button>
+    <button class="tab" id="tab-comp" onclick="setTab('comp')">Compare</button>
+  </div>
+  <div class="legend-pill" id="legend-comp" style="display:none">
+    <span class="legend-line" style="background:var(--base)"></span>Base&nbsp;
+    <span class="legend-line dashed"></span>Optimistic
+  </div>
+</div>
+
+<div class="summary">
+  <div class="sum-card"><div class="sum-label">ARR (final Q)</div><div class="sum-row">
+    <div class="sum-val" style="color:var(--arr-c)" id="s-arr-b">—</div>
+    <div class="sum-vs" id="s-arr-vs" style="display:none"><span class="b" id="s-arr-b2">—</span><span class="o" id="s-arr-o">—</span></div>
+  </div></div>
+  <div class="sum-card"><div class="sum-label">Gross Margin (final Q)</div><div class="sum-row">
+    <div class="sum-val" style="color:var(--gm-c)" id="s-gm-b">—</div>
+    <div class="sum-vs" id="s-gm-vs" style="display:none"><span class="b" id="s-gm-b2">—</span><span class="o" id="s-gm-o">—</span></div>
+  </div></div>
+  <div class="sum-card"><div class="sum-label">Expenses (final Q)</div><div class="sum-row">
+    <div class="sum-val" style="color:var(--exp-c)" id="s-exp-b">—</div>
+    <div class="sum-vs" id="s-exp-vs" style="display:none"><span class="b" id="s-exp-b2">—</span><span class="o" id="s-exp-o">—</span></div>
+  </div></div>
+  <div class="sum-card"><div class="sum-label">Cash (final Q)</div><div class="sum-row">
+    <div class="sum-val" style="color:var(--cash-c)" id="s-cash-b">—</div>
+    <div class="sum-vs" id="s-cash-vs" style="display:none"><span class="b" id="s-cash-b2">—</span><span class="o" id="s-cash-o">—</span></div>
+  </div></div>
+</div>
+
+<!-- SAAS METRICS -->
+<div class="metrics-section">
+  <div class="metrics-header">
+    <span class="metrics-title">Key SaaS Metrics</span>
+    <span class="metrics-hint">Updates live with every change</span>
+  </div>
+  <div class="metrics-assumptions">
+    <div class="mini-ctrl">
+      <div class="mini-label">Churn rate / yr (%)</div>
+      <div class="input-row"><input type="range" class="saas-r" id="i-churn" min="1" max="100" step="1" value="8"><input type="number" class="num-input" id="n-churn" value="8"></div>
+    </div>
+    <div class="mini-ctrl">
+      <div class="mini-label">Expansion rate / yr (%)</div>
+      <div class="input-row"><input type="range" class="saas-r" id="i-expand" min="0" max="200" step="1" value="15"><input type="number" class="num-input" id="n-expand" value="15"></div>
+    </div>
+    <div class="mini-ctrl">
+      <div class="mini-label">CAC per customer ($)</div>
+      <div class="input-row"><input type="range" class="saas-r" id="i-cac" min="500" max="1000000" step="500" value="8000"><input type="number" class="num-input wide" id="n-cac" value="8000"></div>
+    </div>
+    <div class="mini-ctrl">
+      <div class="mini-label">ACV avg contract ($)</div>
+      <div class="input-row"><input type="range" class="saas-r" id="i-acv" min="1000" max="2000000" step="1000" value="12000"><input type="number" class="num-input wide" id="n-acv" value="12000"></div>
+    </div>
+    <div class="mini-ctrl">
+      <div class="mini-label">S&amp;M % of expenses</div>
+      <div class="input-row"><input type="range" class="saas-r" id="i-sm" min="10" max="70" step="5" value="35"><input type="number" class="num-input" id="n-sm" value="35"></div>
+    </div>
+  </div>
+  <div class="metrics-grid">
+    <div class="metric-card" id="mc-nrr"><div class="metric-name">NRR</div><div class="metric-val" id="mv-nrr">—</div><div class="metric-sub">Net Revenue Retention</div><span class="metric-bench" id="mb-nrr">—</span><div class="metric-comp" id="mcomp-nrr"></div></div>
+    <div class="metric-card" id="mc-cac"><div class="metric-name">CAC Payback</div><div class="metric-val" id="mv-cac">—</div><div class="metric-sub">Months to recover CAC</div><span class="metric-bench" id="mb-cac">—</span><div class="metric-comp" id="mcomp-cac"></div></div>
+    <div class="metric-card" id="mc-ltv"><div class="metric-name">LTV : CAC</div><div class="metric-val" id="mv-ltv">—</div><div class="metric-sub">Lifetime value ratio</div><span class="metric-bench" id="mb-ltv">—</span><div class="metric-comp" id="mcomp-ltv"></div></div>
+    <div class="metric-card" id="mc-magic"><div class="metric-name">Magic Number</div><div class="metric-val" id="mv-magic">—</div><div class="metric-sub">Sales efficiency</div><span class="metric-bench" id="mb-magic">—</span><div class="metric-comp" id="mcomp-magic"></div></div>
+    <div class="metric-card" id="mc-r40"><div class="metric-name">Rule of 40</div><div class="metric-val" id="mv-r40">—</div><div class="metric-sub">Growth% + profit margin%</div><span class="metric-bench" id="mb-r40">—</span><div class="metric-comp" id="mcomp-r40"></div></div>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls-wrap">
+  <div class="controls-shared">
+    <div class="ctrl" style="min-width:160px">
+      <div class="ctrl-label">Starting ARR ($)</div>
+      <div class="input-row"><input type="range" class="neu" id="i-arr" min="100000" max="500000000" step="100000" value="2000000"><input type="number" class="num-input wide" id="n-arr" value="2000000"></div>
+    </div>
+    <div class="ctrl" style="min-width:160px">
+      <div class="ctrl-label">Starting expenses / Q ($)</div>
+      <div class="input-row"><input type="range" class="neu" id="i-exp" min="50000" max="50000000" step="50000" value="400000"><input type="number" class="num-input wide" id="n-exp" value="400000"></div>
+    </div>
+    <div class="ctrl" style="min-width:160px">
+      <div class="ctrl-label">Starting cash ($)</div>
+      <div class="input-row"><input type="range" class="neu" id="i-cash" min="500000" max="500000000" step="500000" value="8000000"><input type="number" class="num-input wide" id="n-cash" value="8000000"></div>
+    </div>
+  </div>
+  <div class="controls-scenarios">
+    <div class="scenario-col">
+      <div class="scenario-col-header base-h"><span class="dot" style="background:var(--base)"></span>Base scenario</div>
+      <div class="scenario-sliders">
+        <div class="ctrl">
+          <div class="ctrl-label">ARR growth / yr (%)</div>
+          <div class="input-row"><input type="range" class="base-r" id="i-arrg-b" min="5" max="500" step="5" value="40"><input type="number" class="num-input" id="n-arrg-b" value="40"></div>
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-label">Gross margin (%)</div>
+          <div class="input-row"><input type="range" class="base-r" id="i-gm-b" min="20" max="95" step="1" value="70"><input type="number" class="num-input" id="n-gm-b" value="70"></div>
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-label">Expense growth / yr (%)</div>
+          <div class="input-row"><input type="range" class="base-r" id="i-expg-b" min="0" max="80" step="5" value="15"><input type="number" class="num-input" id="n-expg-b" value="15"></div>
+        </div>
+      </div>
+    </div>
+    <div class="scenario-col">
+      <div class="scenario-col-header opt-h"><span class="dot" style="background:var(--opt)"></span>Optimistic scenario</div>
+      <div class="scenario-sliders">
+        <div class="ctrl">
+          <div class="ctrl-label">ARR growth / yr (%)</div>
+          <div class="input-row"><input type="range" class="opt-r" id="i-arrg-o" min="5" max="500" step="5" value="70"><input type="number" class="num-input" id="n-arrg-o" value="70"></div>
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-label">Gross margin (%)</div>
+          <div class="input-row"><input type="range" class="opt-r" id="i-gm-o" min="20" max="95" step="1" value="78"><input type="number" class="num-input" id="n-gm-o" value="78"></div>
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-label">Expense growth / yr (%)</div>
+          <div class="input-row"><input type="range" class="opt-r" id="i-expg-o" min="0" max="80" step="5" value="10"><input type="number" class="num-input" id="n-expg-o" value="10"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="charts">
+  <div class="chart-card" id="card-arr">
+    <div class="chart-top"><div class="chart-title"><span class="dot" style="background:var(--arr-c)"></span>ARR</div><button class="expand-btn" onclick="toggleExpand('card-arr',this)">expand</button></div>
+    <div class="canvas-wrap"><canvas id="c-arr"></canvas></div>
+  </div>
+  <div class="chart-card" id="card-exp">
+    <div class="chart-top"><div class="chart-title"><span class="dot" style="background:var(--exp-c)"></span>Expenses</div><button class="expand-btn" onclick="toggleExpand('card-exp',this)">expand</button></div>
+    <div class="canvas-wrap"><canvas id="c-exp"></canvas></div>
+  </div>
+  <div class="chart-card" id="card-gm">
+    <div class="chart-top"><div class="chart-title"><span class="dot" style="background:var(--gm-c)"></span>Gross Margin</div><button class="expand-btn" onclick="toggleExpand('card-gm',this)">expand</button></div>
+    <div class="canvas-wrap"><canvas id="c-gm"></canvas></div>
+  </div>
+  <div class="chart-card" id="card-cash">
+    <div class="chart-top">
+      <div class="chart-title"><span class="dot" style="background:var(--cash-c)"></span>Cash</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="runway-badge ok" id="runway-badge">—</span>
+        <button class="expand-btn" onclick="toggleExpand('card-cash',this)">expand</button>
+      </div>
+    </div>
+    <div class="canvas-wrap"><canvas id="c-cash"></canvas></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let activeTab = 'base';
+
+const fmtK = v => { const s=v<0?'-':'',a=Math.abs(v); return a>=1e6?s+'$'+(a/1e6).toFixed(1)+'M':a>=1e3?s+'$'+Math.round(a/1000)+'K':s+'$'+Math.round(a); };
+const fmtAx = v => { const s=v<0?'-':'',a=Math.abs(v); return a>=1e6?s+'$'+(a/1e6).toFixed(1)+'M':a>=1e3?s+'$'+(a/1000).toFixed(0)+'K':s+'$'+v; };
+const rgba = (hex,a)=>({'#3b82f6':`rgba(59,130,246,${a})`,'#4ade9b':`rgba(74,222,155,${a})`,'#f87171':`rgba(248,113,113,${a})`,'#f5c842':`rgba(245,200,66,${a})`,'#a78bfa':`rgba(167,139,250,${a})`})[hex]||`rgba(150,150,150,${a})`;
+
+/* ── Sync slider ↔ number input ── */
+function syncPair(sliderId, numId, min, max, onUpdate) {
+  const sl = $(sliderId), nm = $(numId);
+  sl.addEventListener('input', () => {
+    nm.value = sl.value;
+    onUpdate();
+  });
+  nm.addEventListener('input', () => {
+    const v = parseFloat(nm.value);
+    if (isNaN(v) || v <= 0) return;
+    // update slider position as best effort (clamped to slider range)
+    sl.value = Math.min(max, Math.max(min, v));
+    onUpdate();
+  });
+  nm.addEventListener('change', () => {
+    const v = parseFloat(nm.value);
+    if (!isNaN(v) && v > 0) {
+      sl.value = Math.min(max, Math.max(min, v));
+      onUpdate();
+    }
+  });
+}
+
+const chartOpts = () => ({
+  responsive:true, maintainAspectRatio:false, animation:{duration:180},
+  plugins:{ legend:{display:false}, tooltip:{backgroundColor:'#1a1e28',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#eeeae4',bodyColor:'#9a9da8',callbacks:{label:c=>' '+c.dataset.label+': '+fmtK(c.raw)}} },
+  scales:{ x:{grid:{display:false},border:{display:false},ticks:{color:'#6b6e78',font:{size:10,family:'DM Mono'}}}, y:{border:{display:false},grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#6b6e78',font:{size:10,family:'DM Mono'},callback:fmtAx}} }
+});
+
+const mkChart = (id,color) => new Chart($(id).getContext('2d'),{type:'line',data:{labels:[],datasets:[
+  {label:'Base',       data:[],borderColor:color,    backgroundColor:rgba(color,.1),     borderWidth:2,fill:true, tension:.4,pointRadius:3,pointHoverRadius:5,borderDash:[]},
+  {label:'Optimistic', data:[],borderColor:'#a78bfa',backgroundColor:rgba('#a78bfa',.05),borderWidth:2,fill:false,tension:.4,pointRadius:3,pointHoverRadius:5,borderDash:[5,4]}
+]},options:chartOpts()});
+
+const charts = { arr:mkChart('c-arr','#3b82f6'), exp:mkChart('c-exp','#f87171'), gm:mkChart('c-gm','#4ade9b'), cash:mkChart('c-cash','#f5c842') };
+
+function model(arr0,arrgA,gmp,exp0,expgA,cash0,Q) {
+  const ag=Math.pow(1+arrgA/100,.25)-1, eg=Math.pow(1+expgA/100,.25)-1;
+  const labels=[],arrS=[],expS=[],gmS=[],cashS=[];
+  let cash=cash0,runout=null;
+  for(let q=0;q<=Q;q++){
+    const arr=arr0*Math.pow(1+ag,q), gm=(arr/4)*gmp/100, exp=exp0*Math.pow(1+eg,q);
+    if(q>0) cash+=gm-exp;
+    if(cash<0&&runout===null) runout=q;
+    labels.push(q===0?'Now':'Q'+q);
+    arrS.push(Math.round(arr)); expS.push(Math.round(exp)); gmS.push(Math.round(gm)); cashS.push(Math.round(cash));
+  }
+  return {labels,arrS,expS,gmS,cashS,runout};
+}
+
+function saasM(arrgA,gmp,exp0,arr0){
+  const churn=+$('i-churn').value, expand=+$('i-expand').value;
+  const cac=+$('i-cac').value, acv=+$('i-acv').value, smPct=+$('i-sm').value/100;
+  const nrr=100-churn+expand;
+  const mrrPC=acv/12;
+  const cacPB=mrrPC>0?cac/(mrrPC*gmp/100):Infinity;
+  const ltv=churn>0?(acv*gmp/100)/(churn/100):Infinity;
+  const ltvCac=cac>0?ltv/cac:Infinity;
+  const arrgQ=Math.pow(1+arrgA/100,.25)-1;
+  const magic=exp0*smPct>0?(arr0*arrgQ*gmp/100)/(exp0*smPct):0;
+  const profM=arr0/4>0?((arr0/4*gmp/100-exp0)/(arr0/4))*100:0;
+  const r40=arrgA+profM;
+  return {nrr,cacPB,ltvCac,magic,r40};
+}
+
+function sc(v,g,w){return v>=g?'g':v>=w?'y':'r';}
+function scI(v,g,w){return v<=g?'g':v<=w?'y':'r';}
+
+function renderM(id,valStr,c,bench,comp){
+  $('mc-'+id).className='metric-card s'+c;
+  $('mv-'+id).className='metric-val cv-'+c; $('mv-'+id).textContent=valStr;
+  $('mb-'+id).className='metric-bench bench-'+c; $('mb-'+id).textContent=bench;
+  const el=$('mcomp-'+id);
+  if(comp){el.innerHTML=comp;el.className='metric-comp show';}else el.className='metric-comp';
+}
+
+function updateMetrics(bSc,oSc,inp){
+  const bM=saasM(bSc.arrg,bSc.gm,inp.exp0,inp.arr0);
+  const oM=saasM(oSc.arrg,oSc.gm,inp.exp0,inp.arr0);
+  const m=activeTab==='opt'?oM:bM;
+  const isC=activeTab==='comp';
+
+  renderMetric_nrr(m,bM,oM,isC);
+  renderMetric_cac(m,bM,oM,isC);
+  renderMetric_ltv(m,bM,oM,isC);
+  renderMetric_magic(m,bM,oM,isC);
+  renderMetric_r40(m,bM,oM,isC);
+}
+function renderMetric_nrr(m,bM,oM,isC){
+  const c=sc(m.nrr,120,100);
+  const b=m.nrr>=120?'Best-in-class ≥120%':m.nrr>=100?'Healthy ≥100%':'Below par <100%';
+  renderM('nrr',Math.round(m.nrr)+'%',c,b,isC?`<span class="b">B: ${Math.round(bM.nrr)}%</span> · <span class="o">O: ${Math.round(oM.nrr)}%</span>`:'');
+}
+function renderMetric_cac(m,bM,oM,isC){
+  const pv=isFinite(m.cacPB)?Math.round(m.cacPB):null;
+  const c=pv===null?'r':scI(pv,12,24);
+  const b=pv===null?'No revenue':pv<=12?'Excellent ≤12 mo':pv<=24?'Good ≤24 mo':'Long >24 mo';
+  const pbB=isFinite(bM.cacPB)?Math.round(bM.cacPB)+'mo':'∞';
+  const pbO=isFinite(oM.cacPB)?Math.round(oM.cacPB)+'mo':'∞';
+  renderM('cac',pv!==null?pv+'mo':'∞',c,b,isC?`<span class="b">B: ${pbB}</span> · <span class="o">O: ${pbO}</span>`:'');
+}
+function renderMetric_ltv(m,bM,oM,isC){
+  const lv=isFinite(m.ltvCac)?m.ltvCac.toFixed(1):'∞';
+  const c=!isFinite(m.ltvCac)||m.ltvCac>=5?'g':m.ltvCac>=3?'y':'r';
+  const b=!isFinite(m.ltvCac)||m.ltvCac>=5?'Excellent ≥5×':m.ltvCac>=3?'Healthy ≥3×':'Low <3×';
+  const lbB=isFinite(bM.ltvCac)?bM.ltvCac.toFixed(1)+'×':'∞';
+  const lbO=isFinite(oM.ltvCac)?oM.ltvCac.toFixed(1)+'×':'∞';
+  renderM('ltv',lv+'×',c,b,isC?`<span class="b">B: ${lbB}</span> · <span class="o">O: ${lbO}</span>`:'');
+}
+function renderMetric_magic(m,bM,oM,isC){
+  const c=sc(m.magic,.75,.5);
+  const b=m.magic>=.75?'Strong ≥0.75':m.magic>=.5?'Efficient ≥0.5':'Weak <0.5';
+  renderM('magic',m.magic.toFixed(2),c,b,isC?`<span class="b">B: ${bM.magic.toFixed(2)}</span> · <span class="o">O: ${oM.magic.toFixed(2)}</span>`:'');
+}
+function renderMetric_r40(m,bM,oM,isC){
+  const c=sc(m.r40,40,20);
+  const b=m.r40>=40?'Passes ≥40':m.r40>=20?'Borderline ≥20':'Fails <20';
+  renderM('r40',Math.round(m.r40),c,b,isC?`<span class="b">B: ${Math.round(bM.r40)}</span> · <span class="o">O: ${Math.round(oM.r40)}</span>`:'');
+}
+
+function getInputs(){
+  return {
+    arr0:+$('i-arr').value, exp0:+$('i-exp').value, cash0:+$('i-cash').value, quarters:+$('i-q').value,
+    base:{arrg:+$('i-arrg-b').value,gm:+$('i-gm-b').value,expg:+$('i-expg-b').value},
+    opt: {arrg:+$('i-arrg-o').value,gm:+$('i-gm-o').value,expg:+$('i-expg-o').value},
+  };
+}
+
+function update(){
+  const inp=getInputs();
+  $('l-q').textContent=inp.quarters;
+
+  const b=model(inp.arr0,inp.base.arrg,inp.base.gm,inp.exp0,inp.base.expg,inp.cash0,inp.quarters);
+  const o=model(inp.arr0,inp.opt.arrg, inp.opt.gm, inp.exp0,inp.opt.expg, inp.cash0,inp.quarters);
+  const bF={arr:b.arrS.at(-1),gm:b.gmS.at(-1),exp:b.expS.at(-1),cash:b.cashS.at(-1)};
+  const oF={arr:o.arrS.at(-1),gm:o.gmS.at(-1),exp:o.expS.at(-1),cash:o.cashS.at(-1)};
+  const isC=activeTab==='comp';
+
+  ['arr','gm','exp','cash'].forEach(k=>{
+    const d=isC?bF:activeTab==='opt'?oF:bF;
+    $('s-'+k+'-b').textContent=fmtK(d[k]); $('s-'+k+'-b').style.display=isC?'none':'';
+    $('s-'+k+'-b2').textContent='B: '+fmtK(bF[k]); $('s-'+k+'-o').textContent='O: '+fmtK(oF[k]);
+    $('s-'+k+'-vs').style.display=isC?'flex':'none';
+  });
+
+  const useB=activeTab!=='opt';
+  const runout=useB?b.runout:o.runout, fCash=useB?bF.cash:oF.cash, fExp=useB?b.expS.at(-1):o.expS.at(-1), fGM=useB?b.gmS.at(-1):o.gmS.at(-1);
+  const badge=$('runway-badge');
+  if(runout!==null){badge.textContent='Out at Q'+runout;badge.className='runway-badge bad';}
+  else{const burn=fExp-fGM;if(burn>0){const q=Math.round(fCash/burn);badge.textContent=q+'Q runway';badge.className='runway-badge '+(q<4?'warn':'ok');}else{badge.textContent='CF+';badge.className='runway-badge ok';}}
+
+  updateMetrics(inp.base,inp.opt,inp);
+
+  const showB=activeTab!=='opt', showO=activeTab!=='base';
+  const series={arr:[b.arrS,o.arrS],exp:[b.expS,o.expS],gm:[b.gmS,o.gmS],cash:[b.cashS,o.cashS]};
+  Object.entries(charts).forEach(([k,ch])=>{
+    ch.data.labels=b.labels;
+    ch.data.datasets[0].data=showB?series[k][0]:[]; ch.data.datasets[0].hidden=!showB;
+    ch.data.datasets[1].data=showO?series[k][1]:[]; ch.data.datasets[1].hidden=!showO;
+    ch.update('none');
+  });
+}
+
+function setTab(t){
+  activeTab=t;
+  ['base','opt','comp'].forEach(id=>$('tab-'+id).className='tab'+(id===t?' active-'+id:''));
+  $('legend-comp').style.display=t==='comp'?'flex':'none';
+  update();
+}
+
+function toggleExpand(cardId,btn){
+  const exp=$(cardId).classList.toggle('expanded');
+  btn.textContent=exp?'collapse':'expand';
+  setTimeout(()=>Object.values(charts).forEach(c=>c.resize()),60);
+}
+
+/* ── Wire up all slider/input pairs ── */
+const pairs = [
+  ['i-q','n-q',8,12], ['i-arr','n-arr',100000,500000000], ['i-exp','n-exp',50000,50000000],
+  ['i-cash','n-cash',500000,500000000], ['i-arrg-b','n-arrg-b',5,500], ['i-gm-b','n-gm-b',1,100],
+  ['i-expg-b','n-expg-b',0,500], ['i-arrg-o','n-arrg-o',5,500], ['i-gm-o','n-gm-o',1,100],
+  ['i-expg-o','n-expg-o',0,500], ['i-churn','n-churn',1,100], ['i-expand','n-expand',0,200],
+  ['i-cac','n-cac',500,1000000], ['i-acv','n-acv',1000,2000000], ['i-sm','n-sm',1,100],
+];
+pairs.forEach(([sl,nm,mn,mx])=>syncPair(sl,nm,mn,mx,update));
+
+update();
+</script>
+</body>
+</html>
